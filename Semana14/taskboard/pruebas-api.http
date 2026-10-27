@@ -1,0 +1,215 @@
+@host = http://127.0.0.1:8000/api
+@anaToken = {{loginAna.response.body.$.token}}
+@anaSegundoToken = {{loginAnaSegundoDispositivo.response.body.$.token}}
+@carlosToken = {{loginCarlos.response.body.$.token}}
+@telescopioId = {{crearTelescopio.response.body.$.data.id}}
+@telescopioSinReservaId = {{crearTelescopioSinReserva.response.body.$.data.id}}
+@reservaAnaId = {{crearReservaAna.response.body.$.data.id}}
+@anaPrimerTokenId = {{listarTokensAna.response.body.$[0].id}}
+
+### Sin token: API protegida responde 401 en JSON
+GET {{host}}/yo
+Accept: application/json
+
+### Login de Ana
+# @name loginAna
+POST {{host}}/login
+Accept: application/json
+Content-Type: application/json
+
+{
+  "email": "ana@taskboard.test",
+  "password": "password123",
+  "dispositivo": "rest-client-ana"
+}
+
+### Login con credenciales incorrectas: 422
+POST {{host}}/login
+Accept: application/json
+Content-Type: application/json
+
+{
+  "email": "ana@taskboard.test",
+  "password": "incorrecta",
+  "dispositivo": "rest-client-error"
+}
+
+### Login de Ana desde un segundo dispositivo
+# @name loginAnaSegundoDispositivo
+POST {{host}}/login
+Accept: application/json
+Content-Type: application/json
+
+{
+  "email": "ana@taskboard.test",
+  "password": "password123",
+  "dispositivo": "laptop-ana"
+}
+
+### Identidad determinada por el token
+GET {{host}}/yo
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### API de Telescopios, ahora requiere token
+GET {{host}}/telescopios
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Filtrar telescopios activos
+GET {{host}}/telescopios?activo=1
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Crear telescopio
+POST {{host}}/telescopios
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{anaToken}}
+
+{
+  "nombre": "Telescopio API",
+  "tipo": "Reflector",
+  "apertura_mm": 150,
+  "activo": true
+}
+
+### Mostrar el telescopio creado
+GET {{host}}/telescopios/{{telescopioId}}
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Telescopio inexistente: 404
+GET {{host}}/telescopios/999999
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### API de Reservas: solo devuelve las de Ana
+GET {{host}}/reservas
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Crear reserva: el dueño se obtiene del token; user_id enviado se ignora
+# @name crearReservaAna
+POST {{host}}/reservas
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{anaToken}}
+
+{
+  "user_id": 999999,
+  "telescopio_id": {{telescopioId}},
+  "fecha": "2027-01-01",
+  "horas": 2,
+  "objetivo": "Prueba API Sanctum"
+}
+
+### Filtrar reservas por estado
+GET {{host}}/reservas?estado=pendiente
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Filtro de reserva inválido: 422
+GET {{host}}/reservas?estado=desconocido
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Reserva inexistente: 404
+GET {{host}}/reservas/999999
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Un usuario distinto no puede leer la reserva de Ana: 404
+# @name loginCarlos
+POST {{host}}/login
+Accept: application/json
+Content-Type: application/json
+
+{
+  "email": "carlos@taskboard.test",
+  "password": "password123",
+  "dispositivo": "rest-client-carlos"
+}
+
+### Carlos no puede leer la reserva de Ana: 404
+GET {{host}}/reservas/{{reservaAnaId}}
+Accept: application/json
+Authorization: Bearer {{carlosToken}}
+
+### Un usuario distinto no puede borrar la reserva de Ana: 404
+DELETE {{host}}/reservas/{{reservaAnaId}}
+Accept: application/json
+Authorization: Bearer {{carlosToken}}
+
+### Ana puede leer su reserva
+GET {{host}}/reservas/{{reservaAnaId}}
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Telescopio con reserva no se puede eliminar: 409
+DELETE {{host}}/telescopios/{{telescopioId}}
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Ana puede borrar su reserva: 204
+DELETE {{host}}/reservas/{{reservaAnaId}}
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Intentar crear reserva con datos inválidos: 422
+POST {{host}}/reservas
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{anaToken}}
+
+{
+  "telescopio_id": 999999,
+  "fecha": "2020-01-01",
+  "horas": 9,
+  "objetivo": "x"
+}
+
+### Crear un telescopio sin reservas para probar eliminación
+# @name crearTelescopioSinReserva
+POST {{host}}/telescopios
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer {{anaToken}}
+
+{
+  "nombre": "Telescopio API para eliminar",
+  "tipo": "Refractor",
+  "apertura_mm": 80,
+  "activo": true
+}
+
+### Telescopio sin reservas se puede eliminar: 204
+DELETE {{host}}/telescopios/{{telescopioSinReservaId}}
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Ana ve sus dos tokens; la respuesta no contiene el hash token
+# @name listarTokensAna
+GET {{host}}/tokens
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Ana revoca su primer token/dispositivo: 204
+DELETE {{host}}/tokens/{{anaPrimerTokenId}}
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### El token revocado ya no autentica: 401
+GET {{host}}/yo
+Accept: application/json
+Authorization: Bearer {{anaToken}}
+
+### Logout revoca el token utilizado en esta petición: 204
+POST {{host}}/logout
+Accept: application/json
+Authorization: Bearer {{anaSegundoToken}}
+
+### El token usado en logout ya no autentica: 401
+GET {{host}}/yo
+Accept: application/json
+Authorization: Bearer {{anaSegundoToken}}
