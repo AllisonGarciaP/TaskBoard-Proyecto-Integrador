@@ -1,0 +1,86 @@
+@baseUrl = http://127.0.0.1:8000/api
+@userId = 1
+@telescopioId = 1
+@reservaId = 1
+
+### Listar telescopios
+GET {{baseUrl}}/telescopios
+Accept: application/json
+
+### Mostrar telescopio
+GET {{baseUrl}}/telescopios/{{telescopioId}}
+Accept: application/json
+
+### Crear telescopio
+POST {{baseUrl}}/telescopios
+Accept: application/json
+Content-Type: application/json
+
+{
+  "nombre": "Telescopio API",
+  "tipo": "Reflector",
+  "apertura_mm": 150,
+  "activo": true
+}
+
+### Filtrar telescopios activos (activo=0 también es válido)
+GET {{baseUrl}}/telescopios?activo=1
+Accept: application/json
+
+### Listar reservas
+GET {{baseUrl}}/reservas
+Accept: application/json
+
+### Filtrar reservas por estado
+GET {{baseUrl}}/reservas?estado=pendiente
+Accept: application/json
+
+### Mostrar reserva
+GET {{baseUrl}}/reservas/{{reservaId}}
+Accept: application/json
+
+### Crear reserva (user_id es necesario porque la API no tiene autenticación configurada)
+POST {{baseUrl}}/reservas
+Accept: application/json
+Content-Type: application/json
+
+{
+  "user_id": {{userId}},
+  "telescopio_id": {{telescopioId}},
+  "fecha": "2026-11-01",
+  "horas": 2,
+  "objetivo": "Prueba API REST"
+}
+
+### Error 404: telescopio inexistente
+GET {{baseUrl}}/telescopios/999999
+Accept: application/json
+
+### Error 404: reserva inexistente
+GET {{baseUrl}}/reservas/999999
+Accept: application/json
+
+### Error 422: campos y relaciones inválidos
+POST {{baseUrl}}/reservas
+Accept: application/json
+Content-Type: application/json
+
+{
+  "user_id": 999999,
+  "telescopio_id": 999999,
+  "fecha": "2020-01-01",
+  "horas": 9,
+  "objetivo": "x"
+}
+
+### Error 422: filtro con estado inválido
+GET {{baseUrl}}/reservas?estado=desconocido
+Accept: application/json
+
+### Eliminar reserva (cambiar el ID por uno existente)
+DELETE {{baseUrl}}/reservas/{{reservaId}}
+Accept: application/json
+
+### Eliminar telescopio sin reservas (cambiar el ID por uno existente sin reservas)
+DELETE {{baseUrl}}/telescopios/{{telescopioId}}
+Accept: application/json
